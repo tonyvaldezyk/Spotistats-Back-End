@@ -93,7 +93,3 @@ Pour un environnement de production, utilisez un serveur plus robuste comme **Gu
 pip install gunicorn
 gunicorn -k uvicorn.workers.UvicornWorker main:app
 ```
-
----
-
-C'est tout ! Vous avez maintenant une application **FastAPI** fonctionnelle. Faites-moi savoir si vous souhaitez ajouter une intégration de base de données, une authentification ou déployer votre application !

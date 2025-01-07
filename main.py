@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # from data_preprocessing import pipe_prepocessing
 
 df = pd.read_csv('spotify-data.csv')
 
 app = FastAPI()
+
+############################################
+############## DATA ANALYSIS ###############
+############################################
 
 # Count of songs per year
 @app.get("/")
@@ -38,7 +43,8 @@ def acousticness():
 
     return {"average_acousticness": average}
 
-# Positivness depending on the mode
+
+# Danceability per year
 @app.get("/positivness-mode")
 def positivness():
     positivness = df.groupby('mode')['valence'].mean().sort_values(ascending=False).to_dict()
@@ -47,7 +53,74 @@ def positivness():
 
     return {"sum": sum, "positivness": positivness, "mode": mode}
 
+# Analyse et visualisation du taux de danceability et valence
+@app.get("/danceability-and-valence")
+def danceability_and_valence():
+    grouped = df.groupby(['danceability', 'valence']).size().reset_index(name='count')
+    result = grouped.to_dict(orient='records')
+    return {"data": result}
 
+# Analyse et visualisation de la popularité en fonction du tempo
+@app.get("/popularity-vs-tempo")
+def popularity_vs_tempo():
+    grouped = df.groupby('tempo')['popularity'].mean().reset_index()
+    result = grouped.to_dict(orient='records')
+    return {"data": result}
+
+# Analyse et visualisation de l'acousticness par année
+@app.get("/acousticness-per-year")
+def acousticness_per_year():
+    grouped = df.groupby('year')['acousticness'].mean().reset_index()
+    result = grouped.to_dict(orient='records')
+    return {"data": result}
+
+# Analyse et visualisation de la popularité par langue
+@app.get("/popularity-per-language")
+def popularity_per_language():
+    grouped = df.groupby('language')['popularity'].mean().reset_index()
+    result = grouped.to_dict(orient='records')
+    return {"data": result}
+
+# Analyse et visualisation de la danceability en fonction de la valence
+@app.get("/danceability-vs-valence")
+def danceability_vs_valence():
+    grouped = df.groupby('valence')['danceability'].mean().reset_index()
+    result = grouped.to_dict(orient='records')
+    return {"data": result}
+
+# Top 10 songs with the highest danceability
+@app.get("/top-10-party-tracks")
+def top_10_party_tracks():
+    party_tracks = df[(df['danceability'] > 0.8) & (df['energy'] > 0.7) & (df['loudness'] > -5)]
+    top_party = party_tracks.nlargest(10, 'popularity')[['name', 'artists', 'danceability', 'energy', 'popularity']].to_dict(orient='records')
+    return {"top_10_party_tracks": top_party}
+
+# Top 10 songs with the highest duration
+
+@app.get("/top-10-longest-tracks")
+def top_10_longest_tracks():
+    longest_tracks = df.nlargest(10, 'duration_ms')[['name', 'artists', 'duration_ms']].to_dict(orient='records')
+    return {"top_10_longest_tracks": longest_tracks}
+
+# Top 10 songs with the highest acousticness and lowest energy
+
+@app.get("/top-10-relaxing-tracks")
+def top_10_relaxing_tracks():
+    relaxing_tracks = df[(df['acousticness'] > 0.8) & (df['energy'] < 0.4)]
+    top_relaxing = relaxing_tracks.nlargest(10, 'acousticness')[['name', 'artists', 'acousticness', 'energy']].to_dict(orient='records')
+    return {"top_10_relaxing_tracks": top_relaxing}
+
+# Top 10 songs with the highest popularity
+
+@app.get("/top-10-popular-tracks")
+def top_10_popular_tracks():
+    top_tracks = df.nlargest(10, 'popularity')[['name', 'artists', 'popularity']].to_dict(orient='records')
+    return {"top_10_popular_tracks": top_tracks}
+
+
+############################################
+############## CRUD OPERATIONS #############
+############################################
 
 @app.post("/items/")
 def create_item(item: dict):
