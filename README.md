@@ -20,7 +20,7 @@ Pour la première partie, qui consiste à récupérer et afficher les données, 
 Chaque groupe doit sélectionner un jeu de données parmi les options suivantes :
 
 - [Customer Shopping Dataset](https://www.kaggle.com/datasets/bhadramohit/customer-shopping-latest-trends-dataset)
-- [Spotify Tracks Dataset](https://www.kaggle.com/datasets/meeraajayakumar/spotify-user-behavior-dataset/data)
+- [Spotify track_names Dataset](https://www.kaggle.com/datasets/meeraajayakumar/spotify-user-behavior-dataset/data)
 - [Uber Customer Reviews Dataset](https://www.kaggle.com/datasets/kanchana1990/uber-customer-reviews-dataset-2024)
 - [Global Holidays and Travel Dataset](https://www.kaggle.com/datasets/umerhaddii/global-holidays-and-travel-data)
 
