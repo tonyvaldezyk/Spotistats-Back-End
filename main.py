@@ -1,19 +1,33 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 # import matplotlib.pyplot as plt
 
 # from data_preprocessing import pipe_prepocessing
-
-df = pd.read_csv('spotify-data.csv')
-
 app = FastAPI()
+
+# Count of songs per year
+df = pd.read_csv("csv/spotify-data.csv")
+
+# Add CORS middleware for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite's default port
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ############################################
 ############## DATA ANALYSIS ###############
 ############################################
 
-# Count of songs per year
 @app.get("/")
+async def get_spotify_data():
+    return df.to_dict(orient="records")
+
+# Count of songs per year
+@app.get("/songs-by-year")
 def read_root():
     countByYear = df.groupby(['year']).size().to_dict()
     test = df.head().to_dict()
