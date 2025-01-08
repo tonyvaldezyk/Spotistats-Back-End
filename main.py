@@ -38,6 +38,13 @@ def acousticness():
 
     return {"average_acousticness": average}
 
+# Danceability per year
+@app.get("/danceability-per-year")
+def danceability():
+    average = df.groupby('year')['danceability'].mean().sort_values(ascending=False).to_dict()
+
+    return {"average_danceability": average}
+
 # Positivness depending on the mode
 @app.get("/positivness-mode")
 def positivness():
@@ -46,6 +53,13 @@ def positivness():
     sum = df.describe()
 
     return {"sum": sum, "positivness": positivness, "mode": mode}
+
+# Top 10 songs with most danceability
+@app.get("/10danceableSongs")
+def danceableSongs():
+    top10 = df[['name', 'artists', 'danceability', 'year']].sort_values(by='danceability', ascending=False).head(10).to_dict(orient='records')
+    
+    return {"top10": top10}
 
 
 
