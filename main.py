@@ -59,38 +59,43 @@ async def get_danceability_by_year():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/positivness-mode")
-async def get_valence_by_mode():
-    try:
-        mode_stats = df.groupby('mode').agg({
-            'valence': 'mean',
-            'energy': 'mean',
-            'danceability': 'mean',
-            'acousticness': 'mean',
-            'instrumentalness': 'mean'
-        }).round(3)
-        return {
-            "positivness": mode_stats['valence'].to_dict(),
-            "energy": mode_stats['energy'].to_dict(),
-            "danceability": mode_stats['danceability'].to_dict(),
-            "acousticness": mode_stats['acousticness'].to_dict(),
-            "instrumentalness": mode_stats['instrumentalness'].to_dict()
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.get("/danceability-and-valence")
 async def get_danceability_and_valence():
     try:
-        sample_size = min(1000, len(df))
-        sample = df.sample(n=sample_size, random_state=42)
-        data = [
-            {"danceability": float(row.danceability), 
-             "valence": float(row.valence),
-             "popularity": float(row.popularity)}
-            for _, row in sample.iterrows()
+        # Filtrer les valeurs aberrantes
+        filtered_df = df[
+            (df['danceability'] >= 0) & 
+            (df['danceability'] <= 1) & 
+            (df['valence'] >= 0) & 
+            (df['valence'] <= 1)
         ]
-        return {"data": data}
+
+        # Créer une grille 20x20 pour la heatmap
+        x_bins = np.linspace(0, 1, 21)
+        y_bins = np.linspace(0, 1, 21)
+        
+        # Calculer la densité des points
+        heatmap, x_edges, y_edges = np.histogram2d(
+            filtered_df['danceability'],
+            filtered_df['valence'],
+            bins=[x_bins, y_bins]
+        )
+        
+        # Créer les points pour la heatmap
+        data = []
+        for i in range(len(x_edges)-1):
+            for j in range(len(y_edges)-1):
+                if heatmap[i][j] > 0:  # Ne garder que les cellules non vides
+                    data.append({
+                        "x": float(x_edges[i]),
+                        "y": float(y_edges[j]),
+                        "density": float(heatmap[i][j])
+                    })
+        
+        return {
+            "data": data,
+            "maxDensity": float(heatmap.max())
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
