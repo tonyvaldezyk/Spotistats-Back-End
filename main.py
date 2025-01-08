@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # from data_preprocessing import pipe_prepocessing
 
@@ -43,8 +43,14 @@ def acousticness():
 
     return {"average_acousticness": average}
 
-
 # Danceability per year
+@app.get("/danceability-per-year")
+def danceability():
+    average = df.groupby('year')['danceability'].mean().sort_values(ascending=False).to_dict()
+
+    return {"average_danceability": average}
+
+# Positivness depending on the mode
 @app.get("/positivness-mode")
 def positivness():
     positivness = df.groupby('mode')['valence'].mean().sort_values(ascending=False).to_dict()
@@ -95,15 +101,20 @@ def top_10_party_tracks():
     top_party = party_tracks.nlargest(10, 'popularity')[['name', 'artists', 'danceability', 'energy', 'popularity']].to_dict(orient='records')
     return {"top_10_party_tracks": top_party}
 
-# Top 10 songs with the highest duration
+# Top 10 songs with most danceability
+# @app.get("/10danceableSongs")
+# def danceableSongs():
+#     top10 = df[['name', 'artists', 'danceability', 'year']].sort_values(by='danceability', ascending=False).head(10).to_dict(orient='records')
+    
+#     return {"top10": top10}
 
+# Top 10 songs with the highest duration
 @app.get("/top-10-longest-tracks")
 def top_10_longest_tracks():
     longest_tracks = df.nlargest(10, 'duration_ms')[['name', 'artists', 'duration_ms']].to_dict(orient='records')
     return {"top_10_longest_tracks": longest_tracks}
 
 # Top 10 songs with the highest acousticness and lowest energy
-
 @app.get("/top-10-relaxing-tracks")
 def top_10_relaxing_tracks():
     relaxing_tracks = df[(df['acousticness'] > 0.8) & (df['energy'] < 0.4)]
@@ -111,7 +122,6 @@ def top_10_relaxing_tracks():
     return {"top_10_relaxing_tracks": top_relaxing}
 
 # Top 10 songs with the highest popularity
-
 @app.get("/top-10-popular-tracks")
 def top_10_popular_tracks():
     top_tracks = df.nlargest(10, 'popularity')[['name', 'artists', 'popularity']].to_dict(orient='records')

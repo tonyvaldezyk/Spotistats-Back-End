@@ -1,3 +1,16 @@
+# Intro
+Pour run le projet, utiliser :
+
+```
+uvicorn main:app --reload
+```
+
+ou : 
+
+```
+python3 -m uvicorn main:app --reload
+```
+
 # Projet Visualisation des Données
 
 Pour le projet de visualisation des données, l'objectif est de récupérer les données, de les traiter, de créer une API à partir de ces données, et, en dernière étape, de développer un service qui utilisera cette API pour afficher les données.
