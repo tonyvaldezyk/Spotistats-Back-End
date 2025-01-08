@@ -1,159 +1,203 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
-# import matplotlib.pyplot as plt
+import numpy as np
+from typing import Dict, List
 
-# from data_preprocessing import pipe_prepocessing
 app = FastAPI()
 
-# Count of songs per year
-df = pd.read_csv("csv/spotify-data.csv")
-
-# Add CORS middleware for development
+# Configuration CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite's default port
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-############################################
-############## DATA ANALYSIS ###############
-############################################
+# Chargement des données
+df = pd.read_csv("csv/spotify_tracks.csv")
 
-@app.get("/")
-async def get_spotify_data():
-    return df.to_dict(orient="records")
-
-# Count of songs per year
 @app.get("/songs-by-year")
-def read_root():
-    countByYear = df.groupby(['year']).size().to_dict()
-    test = df.head().to_dict()
+async def get_songs_by_year():
+    try:
+        yearly_counts = df['year'].value_counts().sort_index()
+        return {"songsByYear": yearly_counts.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {"message": "Bienvenue sur FastAPI !", "songsByYear": countByYear}
-
-# Name and artists with parameter year
-@app.get("/year/{year}")
-def songs_by_year(year: int):
-    filtered = df[df['year'] == year]
-    songs = filtered[['name', 'artists']].to_dict(orient='records')
-
-    return {"year": year, "songs": songs}
-
-# Count songs per artist per year
 @app.get("/artist/{year}")
-def song_per_artist(year: int):
-    filtered = df[df['year'] == year]
-    songsPerArtist = filtered.groupby(['artists']).size().sort_values(ascending=False).to_dict()
+async def get_artist_songs(year: str):
+    try:
+        if not year.isdigit():
+            raise HTTPException(status_code=400, detail="Year must be a number")
+        year_df = df[df['year'] == int(year)]
+        if year_df.empty:
+            raise HTTPException(status_code=404, detail=f"No data found for year {year}")
+        # Nettoyer les noms d'artistes avant le comptage
+        year_df['artist_name'] = year_df['artist_name'].apply(lambda x: x.strip("[]'\"").split(",")[0].strip())
+        artist_counts = year_df['artist_name'].value_counts()
+        return {"songsPerArtist": artist_counts.head(10).to_dict()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {"year": year, "songsPerArtist": songsPerArtist}
-
-# Acousticness per year
 @app.get("/acousticness-per-year")
-def acousticness():
-    average = df.groupby('year')['acousticness'].mean().sort_values(ascending=False).to_dict()
+async def get_acousticness_by_year():
+    try:
+        yearly_acousticness = df.groupby('year')['acousticness'].mean().sort_index()
+        return {"average_acousticness": yearly_acousticness.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {"average_acousticness": average}
-
-# Danceability per year
 @app.get("/danceability-per-year")
-def danceability():
-    average = df.groupby('year')['danceability'].mean().sort_values(ascending=False).to_dict()
+async def get_danceability_by_year():
+    try:
+        yearly_danceability = df.groupby('year')['danceability'].mean().sort_index()
+        return {"average_danceability": yearly_danceability.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {"average_danceability": average}
-
-# Positivness depending on the mode
 @app.get("/positivness-mode")
-def positivness():
-    positivness = df.groupby('mode')['valence'].mean().sort_values(ascending=False).to_dict()
-    mode = df.groupby(['mode']).size().to_dict()
-    sum = df.describe()
+async def get_valence_by_mode():
+    try:
+        mode_stats = df.groupby('mode').agg({
+            'valence': 'mean',
+            'energy': 'mean',
+            'danceability': 'mean',
+            'acousticness': 'mean',
+            'instrumentalness': 'mean'
+        }).round(3)
+        return {
+            "positivness": mode_stats['valence'].to_dict(),
+            "energy": mode_stats['energy'].to_dict(),
+            "danceability": mode_stats['danceability'].to_dict(),
+            "acousticness": mode_stats['acousticness'].to_dict(),
+            "instrumentalness": mode_stats['instrumentalness'].to_dict()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {"sum": sum, "positivness": positivness, "mode": mode}
-
-# Analyse et visualisation du taux de danceability et valence
 @app.get("/danceability-and-valence")
-def danceability_and_valence():
-    grouped = df.groupby(['danceability', 'valence']).size().reset_index(name='count')
-    result = grouped.to_dict(orient='records')
-    return {"data": result}
+async def get_danceability_and_valence():
+    try:
+        sample_size = min(1000, len(df))
+        sample = df.sample(n=sample_size, random_state=42)
+        data = [
+            {"danceability": float(row.danceability), 
+             "valence": float(row.valence),
+             "popularity": float(row.popularity)}
+            for _, row in sample.iterrows()
+        ]
+        return {"data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# Analyse et visualisation de la popularité en fonction du tempo
 @app.get("/popularity-vs-tempo")
-def popularity_vs_tempo():
-    grouped = df.groupby('tempo')['popularity'].mean().reset_index()
-    result = grouped.to_dict(orient='records')
-    return {"data": result}
+async def get_popularity_by_tempo():
+    try:
+        # Calculer la moyenne de popularité par tranche de tempo
+        tempo_bins = pd.cut(df['tempo'], bins=50)  # Diviser en 50 tranches
+        tempo_stats = df.groupby(tempo_bins).agg({
+            'tempo': 'mean',
+            'popularity': 'mean'
+        }).dropna()
 
-# Analyse et visualisation de l'acousticness par année
-@app.get("/acousticness-per-year")
-def acousticness_per_year():
-    grouped = df.groupby('year')['acousticness'].mean().reset_index()
-    result = grouped.to_dict(orient='records')
-    return {"data": result}
+        # Appliquer une moyenne mobile pour lisser la courbe
+        tempo_stats['popularity'] = tempo_stats['popularity'].rolling(window=3, center=True).mean()
 
-# Analyse et visualisation de la popularité par langue
+        data = [
+            {
+                "tempo": float(row.tempo),
+                "popularity": float(row.popularity)
+            }
+            for _, row in tempo_stats.iterrows() if not pd.isna(row.popularity)
+        ]
+        
+        return {"data": sorted(data, key=lambda x: x["tempo"])}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/top-10-popular")
+async def get_top_10_popular():
+    try:
+        top_tracks = df.nlargest(10, 'popularity')[
+            ['track_name', 'artist_name', 'popularity', 'artwork_url']
+        ].to_dict('records')
+        return [
+            {
+                "name": track['track_name'],
+                "artists": track['artist_name'],
+                "popularity": int(track['popularity']),
+                "artwork_url": track['artwork_url']
+            }
+            for track in top_tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/top-10-dance")
+async def get_top_10_dance():
+    try:
+        dance_score = df['danceability'] * 0.6 + df['energy'] * 0.4
+        top_tracks = df.loc[dance_score.nlargest(10).index][
+            ['track_name', 'artist_name', 'danceability', 'energy', 'artwork_url']
+        ].to_dict('records')
+        return [
+            {
+                "name": track['track_name'],
+                "artists": track['artist_name'],
+                "danceability": float(track['danceability']),
+                "artwork_url": track['artwork_url']
+            }
+            for track in top_tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/top-10-relaxing")
+async def get_top_10_relaxing():
+    try:
+        relax_score = (1 - df['energy']) * 0.5 + df['acousticness'] * 0.5
+        top_tracks = df.loc[relax_score.nlargest(10).index][
+            ['track_name', 'artist_name', 'acousticness', 'energy', 'artwork_url']
+        ].to_dict('records')
+        return [
+            {
+                "name": track['track_name'],
+                "artists": track['artist_name'],
+                "acousticness": float(track['acousticness']),
+                "energy": float(track['energy']),
+                "artwork_url": track['artwork_url']
+            }
+            for track in top_tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/top-10-longest")
+async def get_top_10_longest():
+    try:
+        top_tracks = df.nlargest(10, 'duration_ms')[
+            ['track_name', 'artist_name', 'duration_ms', 'artwork_url']
+        ].to_dict('records')
+        return [
+            {
+                "name": track['track_name'],
+                "artists": track['artist_name'],
+                "duration_ms": int(track['duration_ms']),
+                "artwork_url": track['artwork_url']
+            }
+            for track in top_tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/popularity-per-language")
-def popularity_per_language():
-    grouped = df.groupby('language')['popularity'].mean().reset_index()
-    result = grouped.to_dict(orient='records')
-    return {"data": result}
-
-# Analyse et visualisation de la danceability en fonction de la valence
-@app.get("/danceability-vs-valence")
-def danceability_vs_valence():
-    grouped = df.groupby('valence')['danceability'].mean().reset_index()
-    result = grouped.to_dict(orient='records')
-    return {"data": result}
-
-# Top 10 songs with the highest danceability
-@app.get("/top-10-party-tracks")
-def top_10_party_tracks():
-    party_tracks = df[(df['danceability'] > 0.8) & (df['energy'] > 0.7) & (df['loudness'] > -5)]
-    top_party = party_tracks.nlargest(10, 'popularity')[['name', 'artists', 'danceability', 'energy', 'popularity']].to_dict(orient='records')
-    return {"top_10_party_tracks": top_party}
-
-# Top 10 songs with most danceability
-# @app.get("/10danceableSongs")
-# def danceableSongs():
-#     top10 = df[['name', 'artists', 'danceability', 'year']].sort_values(by='danceability', ascending=False).head(10).to_dict(orient='records')
-    
-#     return {"top10": top10}
-
-# Top 10 songs with the highest duration
-@app.get("/top-10-longest-tracks")
-def top_10_longest_tracks():
-    longest_tracks = df.nlargest(10, 'duration_ms')[['name', 'artists', 'duration_ms']].to_dict(orient='records')
-    return {"top_10_longest_tracks": longest_tracks}
-
-# Top 10 songs with the highest acousticness and lowest energy
-@app.get("/top-10-relaxing-tracks")
-def top_10_relaxing_tracks():
-    relaxing_tracks = df[(df['acousticness'] > 0.8) & (df['energy'] < 0.4)]
-    top_relaxing = relaxing_tracks.nlargest(10, 'acousticness')[['name', 'artists', 'acousticness', 'energy']].to_dict(orient='records')
-    return {"top_10_relaxing_tracks": top_relaxing}
-
-# Top 10 songs with the highest popularity
-@app.get("/top-10-popular-tracks")
-def top_10_popular_tracks():
-    top_tracks = df.nlargest(10, 'popularity')[['name', 'artists', 'popularity']].to_dict(orient='records')
-    return {"top_10_popular_tracks": top_tracks}
-
-
-############################################
-############## CRUD OPERATIONS #############
-############################################
-
-@app.post("/items/")
-def create_item(item: dict):
-    return {"message": "Item créé avec succès", "item": item}
-
-@app.put("/items/{item_id}")
-def update_item(item_id: int, item: dict):
-    return {"message": "Item mis à jour avec succès", "item_id": item_id, "item": item}
-
-@app.delete("/items/{item_id}")
-def delete_item(item_id: int):
-    return {"message": "Item {item_id} supprimé avec succès"}
+async def get_popularity_by_language():
+    try:
+        language_stats = df.groupby('language')['popularity'].mean().sort_values(ascending=False)
+        return {"popularity_per_language": language_stats.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
