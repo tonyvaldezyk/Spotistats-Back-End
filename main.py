@@ -29,11 +29,8 @@ async def get_songs_by_year():
 @app.get("/artist/{year}")
 async def get_artist_songs(year: str):
     try:
-        if not year.isdigit():
-            raise HTTPException(status_code=400, detail="Year must be a number")
         year_df = df[df['year'] == int(year)]
-        if year_df.empty:
-            raise HTTPException(status_code=404, detail=f"No data found for year {year}")
+
         # Nettoyer les noms d'artistes avant le comptage
         year_df['artist_name'] = year_df['artist_name'].apply(lambda x: x.strip("[]'\"").split(",")[0].strip())
         artist_counts = year_df['artist_name'].value_counts()
@@ -48,6 +45,14 @@ async def get_acousticness_by_year():
     try:
         yearly_acousticness = df.groupby('year')['acousticness'].mean().sort_index()
         return {"average_acousticness": yearly_acousticness.to_dict()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/tempo-per-year")
+async def get_tempo_by_year():
+    try:
+        yearly_tempo = df.groupby('year')['tempo'].mean().sort_index()
+        return {"average_tempo": yearly_tempo.to_dict()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -127,9 +132,7 @@ async def get_popularity_by_tempo():
 @app.get("/top-10-popular")
 async def get_top_10_popular():
     try:
-        top_tracks = df.nlargest(10, 'popularity')[
-            ['track_name', 'artist_name', 'popularity', 'artwork_url']
-        ].to_dict('records')
+        top_tracks = df.nlargest(10, 'popularity')[['track_name', 'artist_name', 'popularity', 'artwork_url']].to_dict('records')
         return [
             {
                 "name": track['track_name'],
@@ -146,9 +149,7 @@ async def get_top_10_popular():
 async def get_top_10_dance():
     try:
         dance_score = df['danceability'] * 0.6 + df['energy'] * 0.4
-        top_tracks = df.loc[dance_score.nlargest(10).index][
-            ['track_name', 'artist_name', 'danceability', 'energy', 'artwork_url']
-        ].to_dict('records')
+        top_tracks = df.loc[dance_score.nlargest(10).index][['track_name', 'artist_name', 'danceability', 'energy', 'artwork_url']].to_dict('records')
         return [
             {
                 "name": track['track_name'],
@@ -164,15 +165,13 @@ async def get_top_10_dance():
 @app.get("/top-10-relaxing")
 async def get_top_10_relaxing():
     try:
-        relax_score = (1 - df['energy']) * 0.5 + df['acousticness'] * 0.5
-        top_tracks = df.loc[relax_score.nlargest(10).index][
-            ['track_name', 'artist_name', 'acousticness', 'energy', 'artwork_url']
-        ].to_dict('records')
+        relax_score = (1 - df['energy']) * 0.5 + df['valence'] * 0.5
+        top_tracks = df.loc[relax_score.nlargest(10).index][['track_name', 'artist_name', 'valence', 'energy', 'artwork_url']].to_dict('records')
         return [
             {
                 "name": track['track_name'],
                 "artists": track['artist_name'],
-                "acousticness": float(track['acousticness']),
+                "valence": float(track['valence']),
                 "energy": float(track['energy']),
                 "artwork_url": track['artwork_url']
             }
@@ -184,9 +183,7 @@ async def get_top_10_relaxing():
 @app.get("/top-10-longest")
 async def get_top_10_longest():
     try:
-        top_tracks = df.nlargest(10, 'duration_ms')[
-            ['track_name', 'artist_name', 'duration_ms', 'artwork_url']
-        ].to_dict('records')
+        top_tracks = df.nlargest(10, 'duration_ms')[['track_name', 'artist_name', 'duration_ms', 'artwork_url']].to_dict('records')
         return [
             {
                 "name": track['track_name'],
