@@ -206,3 +206,38 @@ async def get_popularity_by_language():
         return {"popularity_per_language": language_stats.to_dict()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/mode")
+def get_mode():
+    try:
+        mode_counts = df['mode'].value_counts().to_dict()
+        mode_counts = {
+            "Minor": mode_counts.get(0, 0),
+            "Major": mode_counts.get(1, 0),
+        }
+        return {"items": mode_counts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+#key
+@app.get("/key")
+def get_key_distribution():
+    try:
+        #Compter les occurrences de chaque clé
+        key_counts = df['key'].value_counts().to_dict()
+
+        #Notation standard des hauteurs de classe (par exemple, 0 = C, 1 = C♯/D♭, ...)
+        STANDARD_KEY_MAPPING = {
+            0: 'C', 1: 'C♯/D♭', 2: 'D', 3: 'D♯/E♭', 4: 'E', 5: 'F', 6: 'F♯/G♭',
+            7: 'G', 8: 'G♯/A♭', 9: 'A', 10: 'A♯/B♭', 11: 'B'
+        }
+
+        #Filtrer les clés qui sont valides (comprises entre 0 et 11)
+        valid_key_counts = {key: count for key, count in key_counts.items() if 0 <= key <= 11}
+
+        #Conversion des clés numériques valides en notation standard de hauteur
+        key_counts = {STANDARD_KEY_MAPPING[key]: count for key, count in valid_key_counts.items()}
+
+        return {"items": key_counts}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
