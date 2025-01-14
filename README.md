@@ -24,6 +24,7 @@ This project is the backend part of a Spotify data visualization application. It
 git clone https://github.com/your-username/data-visualization.git
 cd data-visualization
 
+```
 ## To run the project :
 
 ```
