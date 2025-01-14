@@ -25,7 +25,7 @@ git clone https://github.com/your-username/data-visualization.git
 cd data-visualization
 
 ```
-## To run the project :
+### To run the project :
 
 ```
 uvicorn main:app --reload
@@ -40,3 +40,6 @@ python3 -m uvicorn main:app --reload
 ## Link to the frontend repository :
 
 https://github.com/hananeYaya/data-viz-frontend/tree/master
+
+## Dataset used :
+https://www.kaggle.com/datasets/gauthamvijayaraj/spotify-tracks-dataset-updated-every-week
